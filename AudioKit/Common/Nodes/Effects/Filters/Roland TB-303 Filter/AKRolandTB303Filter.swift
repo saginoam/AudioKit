@@ -3,28 +3,21 @@
 //  AudioKit
 //
 //  Created by Aurelius Prochazka, revision history on Github.
-//  Copyright (c) 2016 Aurelius Prochazka. All rights reserved.
+//  Copyright (c) 2017 Aurelius Prochazka. All rights reserved.
 //
 
 import AVFoundation
 
 /// Emulation of the Roland TB-303 filter
 ///
-/// - Parameters:
-///   - input: Input node to process
-///   - cutoffFrequency: Cutoff frequency. (in Hertz)
-///   - resonance: Resonance, generally < 1, but not limited to it. Higher than 1 resonance values might cause aliasing, analogue synths generally allow resonances to be above 1.
-///   - distortion: Distortion. Value is typically 2.0; deviation from this can cause stability issues.
-///   - resonanceAsymmetry: Asymmetry of resonance. Value is between 0-1
-///
 open class AKRolandTB303Filter: AKNode, AKToggleable, AKComponent {
     public typealias AKAudioUnitType = AKRolandTB303FilterAudioUnit
-    static let ComponentDescription = AudioComponentDescription(effect: "tb3f")
+    public static let ComponentDescription = AudioComponentDescription(effect: "tb3f")
 
     // MARK: - Properties
 
-    internal var internalAU: AKAudioUnitType?
-    internal var token: AUParameterObserverToken?
+    private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var cutoffFrequencyParameter: AUParameter?
     fileprivate var resonanceParameter: AUParameter?
@@ -34,10 +27,7 @@ open class AKRolandTB303Filter: AKNode, AKToggleable, AKComponent {
     /// Ramp Time represents the speed at which parameters are allowed to change
     open var rampTime: Double = AKSettings.rampTime {
         willSet {
-            if rampTime != newValue {
-                internalAU?.rampTime = newValue
-                internalAU?.setUpParameterRamp()
-            }
+            internalAU?.rampTime = newValue
         }
     }
 
@@ -121,16 +111,13 @@ open class AKRolandTB303Filter: AKNode, AKToggleable, AKComponent {
         _Self.register()
 
         super.init()
-        AVAudioUnit.instantiate(with: _Self.ComponentDescription, options: []) {
-            avAudioUnit, error in
+        AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self]
+            avAudioUnit in
 
-            guard let avAudioUnitEffect = avAudioUnit else { return }
+            self?.avAudioNode = avAudioUnit
+            self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
 
-            self.avAudioNode = avAudioUnitEffect
-            self.internalAU = avAudioUnitEffect.auAudioUnit as? AKAudioUnitType
-
-            AudioKit.engine.attach(self.avAudioNode)
-            input.addConnectionPoint(self)
+            input.addConnectionPoint(self!)
         }
 
         guard let tree = internalAU?.parameterTree else { return }
@@ -140,18 +127,18 @@ open class AKRolandTB303Filter: AKNode, AKToggleable, AKComponent {
         distortionParameter         = tree["distortion"]
         resonanceAsymmetryParameter = tree["resonanceAsymmetry"]
 
-        token = tree.token (byAddingParameterObserver: {
+        token = tree.token (byAddingParameterObserver: { [weak self]
             address, value in
 
             DispatchQueue.main.async {
-                if address == self.cutoffFrequencyParameter!.address {
-                    self.cutoffFrequency = Double(value)
-                } else if address == self.resonanceParameter!.address {
-                    self.resonance = Double(value)
-                } else if address == self.distortionParameter!.address {
-                    self.distortion = Double(value)
-                } else if address == self.resonanceAsymmetryParameter!.address {
-                    self.resonanceAsymmetry = Double(value)
+                if address == self?.cutoffFrequencyParameter!.address {
+                    self?.cutoffFrequency = Double(value)
+                } else if address == self?.resonanceParameter!.address {
+                    self?.resonance = Double(value)
+                } else if address == self?.distortionParameter!.address {
+                    self?.distortion = Double(value)
+                } else if address == self?.resonanceAsymmetryParameter!.address {
+                    self?.resonanceAsymmetry = Double(value)
                 }
             }
         })

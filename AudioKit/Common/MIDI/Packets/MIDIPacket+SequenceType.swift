@@ -29,68 +29,60 @@ extension MIDIPacket: Sequence {
                 return nil
             }
             
-            func pop() -> UInt8 {
+            func pop() -> MIDIByte {
                 assert(index < self.length)
                 index += 1
-                return generator.next() as! UInt8
+                return generator.next() as! MIDIByte
             }
-            
             let status = pop()
             if AKMIDIEvent.isStatusByte(status) {
-                var data1: UInt8 = 0
-                var data2: UInt8 = 0
+                var data1: MIDIByte = 0
+                var data2: MIDIByte = 0
                 var mstat = AKMIDIEvent.statusFromValue(status)
+                
+                let chan = status & 0xF
                 
                 switch  mstat {
                     
                 case .noteOff, .noteOn, .polyphonicAftertouch, .controllerChange, .pitchWheel:
                     data1 = pop(); data2 = pop()
                     
+                    if mstat == .noteOn && data2 == 0 {
+                        // turn noteOn with velocity 0 to noteOff
+                        mstat = .noteOff
+                    }
+                    return AKMIDIEvent(status: mstat, channel: chan, byte1: data1, byte2: data2)
+                    
                 case .programChange, .channelAftertouch:
                     data1 = pop()
+                    return AKMIDIEvent(status: mstat, channel: chan, byte1: data1, byte2: data2)
                     
                 case .systemCommand:
-                    break
+                    let cmd = AKMIDISystemCommand(rawValue: status)!
+                    switch  cmd {
+                    case .sysex:
+                        // sysex - guaranteed by coremidi to be the entire packet
+                        index = self.length
+                        return AKMIDIEvent(packet: self)
+                    case .songPosition:
+                        //the remaining event generators need to be tested and tweaked to the specific messages
+                        data1 = pop()
+                        data2 = pop()
+                        
+                        return AKMIDIEvent(command: cmd, byte1: data1, byte2: data2)
+                    case .songSelect:
+                        data1 = pop()
+                
+                        return AKMIDIEvent(command: cmd, byte1: data1, byte2: data2)
+                    default:
+                        return AKMIDIEvent(packet: self)
+                    }
                     
                 default:
-                    break
+                    return AKMIDIEvent(packet: self)
                 }
-                
-                if mstat == .noteOn && data2 == 0 {
-                    // turn noteOn with velocity 0 to noteOff
-                    mstat = .noteOff
-                }
-                
-                let chan = status & 0xF
-                return AKMIDIEvent(status: mstat, channel: chan, byte1: data1, byte2: data2)
-                
-            } else if status == 0xF0 {
-                // sysex - guaranteed by coremidi to be the entire packet
-                index = self.length
-                return AKMIDIEvent(packet: self)
-                
             } else {
-                let cmd = AKMIDISystemCommand(rawValue: status)!
-                var data1: UInt8 = 0
-                var data2: UInt8 = 0
-                
-                switch  cmd {
-                    
-                case .sysex:
-                    break
-                    
-                case .songPosition:
-                    data1 = pop()
-                    data2 = pop()
-                    
-                case .songSelect:
-                    data1 = pop()
-                    
-                default:
-                    break
-                }
-                
-                return AKMIDIEvent(command: cmd, byte1: data1, byte2: data2)
+                return nil
             }
         }
     }
@@ -98,7 +90,7 @@ extension MIDIPacket: Sequence {
 
 
 /// Temporary hack for Xcode 7.3.1 - Appreciate improvements to this if you want to make a go of it!
-typealias AKRawMIDIPacket = (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
+typealias AKRawMIDIPacket = (MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte)
 
 
 /// The returned generator will enumerate each value of the provided tuple.

@@ -3,7 +3,7 @@
 //  AudioKit
 //
 //  Created by Aurelius Prochazka, revision history on Github.
-//  Copyright (c) 2016 Aurelius Prochazka. All rights reserved.
+//  Copyright (c) 2017 Aurelius Prochazka. All rights reserved.
 //
 
 import AVFoundation
@@ -11,23 +11,14 @@ import AVFoundation
 /// This is an oscillator with linear interpolation that is capable of morphing
 /// between an arbitrary number of wavetables.
 ///
-/// - Parameters:
-///   - waveformArray:      An array of exactly four waveforms
-///   - frequency:          Frequency (in Hz)
-///   - amplitude:          Amplitude (typically a value between 0 and 1).
-///   - index:              Index of the wavetable to use (fractional are okay).
-///   - detuningOffset:     Frequency offset in Hz.
-///   - detuningMultiplier: Frequency detuning multiplier
-///   - phase:              Initial phase of waveform, expects a value 0-1
-///
 open class AKMorphingOscillator: AKNode, AKToggleable, AKComponent {
     public typealias AKAudioUnitType = AKMorphingOscillatorAudioUnit
-    static let ComponentDescription = AudioComponentDescription(generator: "morf")
+    public static let ComponentDescription = AudioComponentDescription(generator: "morf")
 
     // MARK: - Properties
 
-    internal var internalAU: AKAudioUnitType?
-    internal var token: AUParameterObserverToken?
+    private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var waveformArray = [AKTable]()
     fileprivate var phase: Double
@@ -41,10 +32,7 @@ open class AKMorphingOscillator: AKNode, AKToggleable, AKComponent {
     /// Ramp Time represents the speed at which parameters are allowed to change
     open var rampTime: Double = AKSettings.rampTime {
         willSet {
-            if rampTime != newValue {
-                internalAU?.rampTime = newValue
-                internalAU?.setUpParameterRamp()
-            }
+            internalAU?.rampTime = newValue
         }
     }
 
@@ -156,20 +144,15 @@ open class AKMorphingOscillator: AKNode, AKToggleable, AKComponent {
         _Self.register()
 
         super.init()
-        AVAudioUnit.instantiate(with: _Self.ComponentDescription, options: []) {
-            avAudioUnit, error in
-
-            guard let avAudioUnitGenerator = avAudioUnit else { return }
-
-            self.avAudioNode = avAudioUnitGenerator
-            self.internalAU = avAudioUnitGenerator.auAudioUnit as? AKAudioUnitType
-
-            AudioKit.engine.attach(self.avAudioNode)
+        AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self]
+            avAudioUnit in
+            self?.avAudioNode = avAudioUnit
+            self?.internalAU = avAudioUnit .auAudioUnit as? AKAudioUnitType
 
             for (i, waveform) in waveformArray.enumerated() {
-                self.internalAU?.setupWaveform(UInt32(i), size: Int32(waveform.count))
+                self?.internalAU?.setupWaveform(UInt32(i), size: Int32(waveform.count))
                 for (j, sample) in waveform.enumerated() {
-                    self.internalAU?.setWaveform(UInt32(i), withValue: sample, at: UInt32(j))
+                    self?.internalAU?.setWaveform(UInt32(i), withValue: sample, at: UInt32(j))
                 }
             }
         }
@@ -182,20 +165,20 @@ open class AKMorphingOscillator: AKNode, AKToggleable, AKComponent {
         detuningOffsetParameter     = tree["detuningOffset"]
         detuningMultiplierParameter = tree["detuningMultiplier"]
 
-        token = tree.token (byAddingParameterObserver: {
+        token = tree.token (byAddingParameterObserver: { [weak self]
             address, value in
 
             DispatchQueue.main.async {
-                if address == self.frequencyParameter!.address {
-                    self.frequency = Double(value)
-                } else if address == self.amplitudeParameter!.address {
-                    self.amplitude = Double(value)
-                } else if address == self.indexParameter!.address {
-                    self.index = Double(value)
-                } else if address == self.detuningOffsetParameter!.address {
-                    self.detuningOffset = Double(value)
-                } else if address == self.detuningMultiplierParameter!.address {
-                    self.detuningMultiplier = Double(value)
+                if address == self?.frequencyParameter!.address {
+                    self?.frequency = Double(value)
+                } else if address == self?.amplitudeParameter!.address {
+                    self?.amplitude = Double(value)
+                } else if address == self?.indexParameter!.address {
+                    self?.index = Double(value)
+                } else if address == self?.detuningOffsetParameter!.address {
+                    self?.detuningOffset = Double(value)
+                } else if address == self?.detuningMultiplierParameter!.address {
+                    self?.detuningMultiplier = Double(value)
                 }
             }
         })

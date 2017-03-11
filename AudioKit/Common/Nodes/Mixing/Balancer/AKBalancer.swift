@@ -3,7 +3,7 @@
 //  AudioKit
 //
 //  Created by Aurelius Prochazka, revision history on Github.
-//  Copyright (c) 2015 Aurelius Prochazka. All rights reserved.
+//  Copyright (c) 2017 Aurelius Prochazka. All rights reserved.
 //
 
 import AVFoundation
@@ -15,17 +15,12 @@ import AVFoundation
 /// should be noted that this modifies amplitude only; output signal is not
 /// altered in any other respect.
 ///
-/// - Parameters:
-///   - input: Input node to process
-///   - comparator: Audio to match power with
-///
 open class AKBalancer: AKNode, AKToggleable, AKComponent {
     public typealias AKAudioUnitType = AKBalancerAudioUnit
-    static let ComponentDescription = AudioComponentDescription(mixer: "blnc")
+    public static let ComponentDescription = AudioComponentDescription(mixer: "blnc")
 
     // MARK: - Properties
-    
-    internal var internalAU: AKAudioUnitType?
+    private var internalAU: AKAudioUnitType?
 
     /// Tells whether the node is processing (ie. started, playing, or active)
     open var isStarted: Bool {
@@ -43,18 +38,15 @@ open class AKBalancer: AKNode, AKToggleable, AKComponent {
     public init( _ input: AKNode, comparator: AKNode) {
         _Self.register()
         super.init()
-        AVAudioUnit.instantiate(with: _Self.ComponentDescription, options: []) {
-            avAudioUnit, error in
+        AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self]
+            avAudioUnit in
 
-            guard let avAudioUnitEffect = avAudioUnit else { return }
+            self?.avAudioNode = avAudioUnit
+            self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
 
-            self.avAudioNode = avAudioUnitEffect
-            self.internalAU = avAudioUnitEffect.auAudioUnit as? AKAudioUnitType
+            input.addConnectionPoint(self!)
 
-            AudioKit.engine.attach(self.avAudioNode)
-            input.addConnectionPoint(self)
-
-            comparator.connectionPoints.append(AVAudioConnectionPoint(node: self.avAudioNode, bus: 1))
+            comparator.connectionPoints.append(AVAudioConnectionPoint(node: self!.avAudioNode, bus: 1))
             AudioKit.engine.connect(comparator.avAudioNode, to: comparator.connectionPoints, fromBus: 0, format: nil)
         }
     }

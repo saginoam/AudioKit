@@ -18,7 +18,7 @@ extension AKAudioFile {
         do {
             try fileSampler.loadAudioFile(self)
         } catch let error as NSError {
-            print( "ERROR AKAudioFile: cannot create sampler: \(error)")
+            AKLog("ERROR AKAudioFile: cannot create sampler: \(error)")
         }
         return fileSampler
     }
@@ -29,19 +29,19 @@ extension AKAudioFile {
         do {
             try fileSampler.loadAudioFile(self)
         } catch let error as NSError {
-            print( "ERROR AKAudioFile: cannot create sampler: \(error)")
+            AKLog("ERROR AKAudioFile: cannot create sampler: \(error)")
         }
         return fileSampler
     }
 
     /// Create an AKAudioPlayer to play the current AKAudioFile
-    public var player:AKAudioPlayer? {
-        var filePlayer:AKAudioPlayer?
+    public var player: AKAudioPlayer? {
+        var filePlayer: AKAudioPlayer?
 
         do {
             try filePlayer = AKAudioPlayer(file: self)
         } catch let error as NSError {
-            print( "ERROR AKAudioFile: cannot create player: \(error)")
+            AKLog("ERROR AKAudioFile: cannot create player: \(error)")
         }
         return filePlayer
     }

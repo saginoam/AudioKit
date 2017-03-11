@@ -3,7 +3,7 @@
 //  AudioKit
 //
 //  Created by Aurelius Prochazka, revision history on Github.
-//  Copyright (c) 2016 Aurelius Prochazka. All rights reserved.
+//  Copyright (c) 2017 Aurelius Prochazka. All rights reserved.
 //
 
 import AVFoundation
@@ -11,24 +11,14 @@ import AVFoundation
 /// Physical model of the sound of dripping water. When triggered, it will
 /// produce a droplet of water.
 ///
-/// - Parameters:
-///   - intensity: The intensity of the dripping sound.
-///   - dampingFactor: The damping factor. Maximum value is 2.0.
-///   - energyReturn: The amount of energy to add back into the system.
-///   - mainResonantFrequency: Main resonant frequency.
-///   - firstResonantFrequency: The first resonant frequency.
-///   - secondResonantFrequency: The second resonant frequency.
-///   - amplitude: Amplitude.
-///
 open class AKDrip: AKNode, AKComponent {
     public typealias AKAudioUnitType = AKDripAudioUnit
-    static let ComponentDescription = AudioComponentDescription(generator: "drip")
+    public static let ComponentDescription = AudioComponentDescription(generator: "drip")
 
     // MARK: - Properties
 
-    internal var internalAU: AKAudioUnitType?
-    internal var token: AUParameterObserverToken?
-
+    private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var intensityParameter: AUParameter?
     fileprivate var dampingFactorParameter: AUParameter?
@@ -41,10 +31,7 @@ open class AKDrip: AKNode, AKComponent {
     /// Ramp Time represents the speed at which parameters are allowed to change
     open var rampTime: Double = AKSettings.rampTime {
         willSet {
-            if rampTime != newValue {
-                internalAU?.rampTime = newValue
-                internalAU?.setUpParameterRamp()
-            }
+            internalAU?.rampTime = newValue
         }
     }
 
@@ -154,45 +141,41 @@ open class AKDrip: AKNode, AKComponent {
         _Self.register()
 
         super.init()
-        AVAudioUnit.instantiate(with: _Self.ComponentDescription, options: []) {
-            avAudioUnit, error in
+        AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self]
+            avAudioUnit in
 
-            guard let avAudioUnitGenerator = avAudioUnit else { return }
-
-            self.avAudioNode = avAudioUnitGenerator
-            self.internalAU = avAudioUnitGenerator.auAudioUnit as? AKAudioUnitType
-
-            AudioKit.engine.attach(self.avAudioNode)
+            self?.avAudioNode = avAudioUnit
+            self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
         }
 
         guard let tree = internalAU?.parameterTree else { return }
 
-        intensityParameter               = tree["intensity"]
-        dampingFactorParameter           = tree["dampingFactor"]
-        energyReturnParameter            = tree["energyReturn"]
-        mainResonantFrequencyParameter   = tree["mainResonantFrequency"]
-        firstResonantFrequencyParameter  = tree["firstResonantFrequency"]
+        intensityParameter = tree["intensity"]
+        dampingFactorParameter = tree["dampingFactor"]
+        energyReturnParameter = tree["energyReturn"]
+        mainResonantFrequencyParameter = tree["mainResonantFrequency"]
+        firstResonantFrequencyParameter = tree["firstResonantFrequency"]
         secondResonantFrequencyParameter = tree["secondResonantFrequency"]
-        amplitudeParameter               = tree["amplitude"]
+        amplitudeParameter = tree["amplitude"]
 
-        token = tree.token (byAddingParameterObserver: {
+        token = tree.token (byAddingParameterObserver: { [weak self]
             address, value in
 
             DispatchQueue.main.async {
-                if address == self.intensityParameter!.address {
-                    self.intensity = Double(value)
-                } else if address == self.dampingFactorParameter!.address {
-                    self.dampingFactor = Double(value)
-                } else if address == self.energyReturnParameter!.address {
-                    self.energyReturn = Double(value)
-                } else if address == self.mainResonantFrequencyParameter!.address {
-                    self.mainResonantFrequency = Double(value)
-                } else if address == self.firstResonantFrequencyParameter!.address {
-                    self.firstResonantFrequency = Double(value)
-                } else if address == self.secondResonantFrequencyParameter!.address {
-                    self.secondResonantFrequency = Double(value)
-                } else if address == self.amplitudeParameter!.address {
-                    self.amplitude = Double(value)
+                if address == self?.intensityParameter!.address {
+                    self?.intensity = Double(value)
+                } else if address == self?.dampingFactorParameter!.address {
+                    self?.dampingFactor = Double(value)
+                } else if address == self?.energyReturnParameter!.address {
+                    self?.energyReturn = Double(value)
+                } else if address == self?.mainResonantFrequencyParameter!.address {
+                    self?.mainResonantFrequency = Double(value)
+                } else if address == self?.firstResonantFrequencyParameter!.address {
+                    self?.firstResonantFrequency = Double(value)
+                } else if address == self?.secondResonantFrequencyParameter!.address {
+                    self?.secondResonantFrequency = Double(value)
+                } else if address == self?.amplitudeParameter!.address {
+                    self?.amplitude = Double(value)
                 }
             }
         })

@@ -3,25 +3,21 @@
 //  AudioKit
 //
 //  Created by Aurelius Prochazka, revision history on Github.
-//  Copyright (c) 2016 Aurelius Prochazka. All rights reserved.
+//  Copyright (c) 2017 Aurelius Prochazka. All rights reserved.
 //
 
 import AVFoundation
 
 /// Physical model of a 4 course mandolin
 ///
-/// - Parameters:
-///   - detune:   Detuning of second string in the course (1=Unison (deault), 2=Octave)
-///   - bodySize: Relative size of the mandoline (Default: 1, ranges ~ 0.5 - 2)
-///
 open class AKMandolin: AKNode, AKComponent {
     public typealias AKAudioUnitType = AKMandolinAudioUnit
-    static let ComponentDescription = AudioComponentDescription(generator: "mand")
+    public static let ComponentDescription = AudioComponentDescription(generator: "mand")
 
     // MARK: - Properties
 
-    internal var internalAU: AKAudioUnitType?
-    internal var token: AUParameterObserverToken?
+    private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var detuneParameter: AUParameter?
     fileprivate var bodySizeParameter: AUParameter?
@@ -35,10 +31,7 @@ open class AKMandolin: AKNode, AKComponent {
     /// Ramp Time represents the speed at which parameters are allowed to change
     open var rampTime: Double = AKSettings.rampTime {
         willSet {
-            if rampTime != newValue {
-                internalAU?.rampTime = newValue
-                internalAU?.setUpParameterRamp()
-            }
+            internalAU?.rampTime = newValue
         }
     }
 
@@ -86,15 +79,11 @@ open class AKMandolin: AKNode, AKComponent {
         _Self.register()
 
         super.init()
-        AVAudioUnit.instantiate(with: _Self.ComponentDescription, options: []) {
-            avAudioUnit, error in
+        AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self]
+            avAudioUnit in
 
-            guard let avAudioUnitGenerator = avAudioUnit else { return }
-
-            self.avAudioNode = avAudioUnitGenerator
-            self.internalAU = avAudioUnitGenerator.auAudioUnit as? AKAudioUnitType
-
-            AudioKit.engine.attach(self.avAudioNode)
+            self?.avAudioNode = avAudioUnit
+            self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
         }
 
         guard let tree = internalAU?.parameterTree else { return }
@@ -102,14 +91,14 @@ open class AKMandolin: AKNode, AKComponent {
         detuneParameter   = tree["detune"]
         bodySizeParameter = tree["bodySize"]
 
-        token = tree.token (byAddingParameterObserver: {
+        token = tree.token (byAddingParameterObserver: { [weak self]
             address, value in
 
             DispatchQueue.main.async {
-                if address == self.detuneParameter!.address {
-                    self.detune = Double(value)
-                } else if address == self.bodySizeParameter!.address {
-                    self.bodySize = Double(value)
+                if address == self?.detuneParameter!.address {
+                    self?.detune = Double(value)
+                } else if address == self?.bodySizeParameter!.address {
+                    self?.bodySize = Double(value)
                 }
             }
         })

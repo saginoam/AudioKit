@@ -3,27 +3,21 @@
 //  AudioKit
 //
 //  Created by Aurelius Prochazka, revision history on Github.
-//  Copyright (c) 2016 Aurelius Prochazka. All rights reserved.
+//  Copyright (c) 2017 Aurelius Prochazka. All rights reserved.
 //
 
 import AVFoundation
 
 /// A delay line with cubic interpolation.
 ///
-/// - Parameters:
-///   - input: Input node to process
-///   - time: Delay time (in seconds) that can be changed during performance. This value must not exceed the maximum delay time.
-///   - feedback: Feedback amount. Should be a value between 0-1.
-///   - maximumDelayTime: The maximum delay time, in seconds.
-///
 open class AKVariableDelay: AKNode, AKToggleable, AKComponent {
     public typealias AKAudioUnitType = AKVariableDelayAudioUnit
-    static let ComponentDescription = AudioComponentDescription(effect: "vdla")
+    public static let ComponentDescription = AudioComponentDescription(effect: "vdla")
 
     // MARK: - Properties
 
-    internal var internalAU: AKAudioUnitType?
-    internal var token: AUParameterObserverToken?
+    private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var timeParameter: AUParameter?
     fileprivate var feedbackParameter: AUParameter?
@@ -31,10 +25,7 @@ open class AKVariableDelay: AKNode, AKToggleable, AKComponent {
     /// Ramp Time represents the speed at which parameters are allowed to change
     open var rampTime: Double = AKSettings.rampTime {
         willSet {
-            if rampTime != newValue {
-                internalAU?.rampTime = newValue
-                internalAU?.setUpParameterRamp()
-            }
+            internalAU?.rampTime = newValue
         }
     }
 
@@ -89,16 +80,13 @@ open class AKVariableDelay: AKNode, AKToggleable, AKComponent {
 
         _Self.register()
         super.init()
-        AVAudioUnit.instantiate(with: _Self.ComponentDescription, options: []) {
-            avAudioUnit, error in
+        AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self]
+            avAudioUnit in
 
-            guard let avAudioUnitEffect = avAudioUnit else { return }
+            self?.avAudioNode = avAudioUnit
+            self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
 
-            self.avAudioNode = avAudioUnitEffect
-            self.internalAU = avAudioUnitEffect.auAudioUnit as? AKAudioUnitType
-
-            AudioKit.engine.attach(self.avAudioNode)
-            input.addConnectionPoint(self)
+            input.addConnectionPoint(self!)
         }
 
         guard let tree = internalAU?.parameterTree else { return }
@@ -106,14 +94,14 @@ open class AKVariableDelay: AKNode, AKToggleable, AKComponent {
         timeParameter     = tree["time"]
         feedbackParameter = tree["feedback"]
 
-        token = tree.token (byAddingParameterObserver: {
+        token = tree.token (byAddingParameterObserver: { [weak self]
             address, value in
 
             DispatchQueue.main.async {
-                if address == self.timeParameter!.address {
-                    self.time = Double(value)
-                } else if address == self.feedbackParameter!.address {
-                    self.feedback = Double(value)
+                if address == self?.timeParameter!.address {
+                    self?.time = Double(value)
+                } else if address == self?.feedbackParameter!.address {
+                    self?.feedback = Double(value)
                 }
             }
         })

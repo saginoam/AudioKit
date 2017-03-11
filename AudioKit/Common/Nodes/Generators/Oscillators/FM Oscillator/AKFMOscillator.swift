@@ -3,29 +3,21 @@
 //  AudioKit
 //
 //  Created by Aurelius Prochazka, revision history on Github.
-//  Copyright (c) 2016 Aurelius Prochazka. All rights reserved.
+//  Copyright (c) 2017 Aurelius Prochazka. All rights reserved.
 //
 
 import AVFoundation
 
 /// Classic FM Synthesis audio generation.
 ///
-/// - Parameters:
-///   - waveform: Shape of the oscillation
-///   - baseFrequency: In cycles per second, or Hz, this is the common denominator for the carrier and modulating frequencies.
-///   - carrierMultiplier: This multiplied by the baseFrequency gives the carrier frequency.
-///   - modulatingMultiplier: This multiplied by the baseFrequency gives the modulating frequency.
-///   - modulationIndex: This multiplied by the modulating frequency gives the modulation amplitude.
-///   - amplitude: Output Amplitude.
-///
 open class AKFMOscillator: AKNode, AKToggleable, AKComponent {
     public typealias AKAudioUnitType = AKFMOscillatorAudioUnit
-    static let ComponentDescription = AudioComponentDescription(generator: "fosc")
+    public static let ComponentDescription = AudioComponentDescription(generator: "fosc")
 
     // MARK: - Properties
 
-    internal var internalAU: AKAudioUnitType?
-    internal var token: AUParameterObserverToken?
+    private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var waveform: AKTable?
 
@@ -38,10 +30,7 @@ open class AKFMOscillator: AKNode, AKToggleable, AKComponent {
     /// Ramp Time represents the speed at which parameters are allowed to change
     open var rampTime: Double = AKSettings.rampTime {
         willSet {
-            if rampTime != newValue {
-                internalAU?.rampTime = newValue
-                internalAU?.setUpParameterRamp()
-            }
+            internalAU?.rampTime = newValue
         }
     }
 
@@ -151,18 +140,14 @@ open class AKFMOscillator: AKNode, AKToggleable, AKComponent {
         _Self.register()
 
         super.init()
-        AVAudioUnit.instantiate(with: _Self.ComponentDescription, options: []) {
-            avAudioUnit, error in
+        AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self]
+            avAudioUnit in
+            self?.avAudioNode = avAudioUnit
+            self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
 
-            guard let avAudioUnitGenerator = avAudioUnit else { return }
-
-            self.avAudioNode = avAudioUnitGenerator
-            self.internalAU = avAudioUnitGenerator.auAudioUnit as? AKAudioUnitType
-
-            AudioKit.engine.attach(self.avAudioNode)
-            self.internalAU?.setupWaveform(Int32(waveform.count))
+            self?.internalAU?.setupWaveform(Int32(waveform.count))
             for (i, sample) in waveform.enumerated() {
-                self.internalAU?.setWaveformValue(sample, at: UInt32(i))
+                self?.internalAU?.setWaveformValue(sample, at: UInt32(i))
             }
         }
 
@@ -174,20 +159,20 @@ open class AKFMOscillator: AKNode, AKToggleable, AKComponent {
         modulationIndexParameter      = tree["modulationIndex"]
         amplitudeParameter            = tree["amplitude"]
 
-        token = tree.token (byAddingParameterObserver: {
+        token = tree.token (byAddingParameterObserver: { [weak self]
             address, value in
 
             DispatchQueue.main.async {
-                if address == self.baseFrequencyParameter!.address {
-                    self.baseFrequency = Double(value)
-                } else if address == self.carrierMultiplierParameter!.address {
-                    self.carrierMultiplier = Double(value)
-                } else if address == self.modulatingMultiplierParameter!.address {
-                    self.modulatingMultiplier = Double(value)
-                } else if address == self.modulationIndexParameter!.address {
-                    self.modulationIndex = Double(value)
-                } else if address == self.amplitudeParameter!.address {
-                    self.amplitude = Double(value)
+                if address == self?.baseFrequencyParameter!.address {
+                    self?.baseFrequency = Double(value)
+                } else if address == self?.carrierMultiplierParameter!.address {
+                    self?.carrierMultiplier = Double(value)
+                } else if address == self?.modulatingMultiplierParameter!.address {
+                    self?.modulatingMultiplier = Double(value)
+                } else if address == self?.modulationIndexParameter!.address {
+                    self?.modulationIndex = Double(value)
+                } else if address == self?.amplitudeParameter!.address {
+                    self?.amplitude = Double(value)
                 }
             }
         })

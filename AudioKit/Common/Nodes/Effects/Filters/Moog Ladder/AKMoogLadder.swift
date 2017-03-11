@@ -3,7 +3,7 @@
 //  AudioKit
 //
 //  Created by Aurelius Prochazka, revision history on Github.
-//  Copyright (c) 2016 Aurelius Prochazka. All rights reserved.
+//  Copyright (c) 2017 Aurelius Prochazka. All rights reserved.
 //
 
 import AVFoundation
@@ -14,19 +14,14 @@ import AVFoundation
 /// Napoli). This implementation is probably a more accurate digital
 /// representation of the original analogue filter.
 ///
-/// - Parameters:
-///   - input: Input node to process
-///   - cutoffFrequency: Filter cutoff frequency.
-///   - resonance: Resonance, generally < 1, but not limited to it. Higher than 1 resonance values might cause aliasing, analogue synths generally allow resonances to be above 1.
-///
 open class AKMoogLadder: AKNode, AKToggleable, AKComponent {
     public typealias AKAudioUnitType = AKMoogLadderAudioUnit
-    static let ComponentDescription = AudioComponentDescription(effect: "mgld")
+    public static let ComponentDescription = AudioComponentDescription(effect: "mgld")
 
     // MARK: - Properties
 
-    internal var internalAU: AKAudioUnitType?
-    internal var token: AUParameterObserverToken?
+    private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var cutoffFrequencyParameter: AUParameter?
     fileprivate var resonanceParameter: AUParameter?
@@ -34,10 +29,7 @@ open class AKMoogLadder: AKNode, AKToggleable, AKComponent {
     /// Ramp Time represents the speed at which parameters are allowed to change
     open var rampTime: Double = AKSettings.rampTime {
         willSet {
-            if rampTime != newValue {
-                internalAU?.rampTime = newValue
-                internalAU?.setUpParameterRamp()
-            }
+            internalAU?.rampTime = newValue
         }
     }
 
@@ -91,16 +83,13 @@ open class AKMoogLadder: AKNode, AKToggleable, AKComponent {
         _Self.register()
 
         super.init()
-        AVAudioUnit.instantiate(with: _Self.ComponentDescription, options: []) {
-            avAudioUnit, error in
+        AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self]
+            avAudioUnit in
 
-            guard let avAudioUnitEffect = avAudioUnit else { return }
+            self?.avAudioNode = avAudioUnit
+            self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
 
-            self.avAudioNode = avAudioUnitEffect
-            self.internalAU = avAudioUnitEffect.auAudioUnit as? AKAudioUnitType
-
-            AudioKit.engine.attach(self.avAudioNode)
-            input.addConnectionPoint(self)
+            input.addConnectionPoint(self!)
         }
 
         guard let tree = internalAU?.parameterTree else { return }
@@ -108,14 +97,14 @@ open class AKMoogLadder: AKNode, AKToggleable, AKComponent {
         cutoffFrequencyParameter = tree["cutoffFrequency"]
         resonanceParameter       = tree["resonance"]
 
-        token = tree.token (byAddingParameterObserver: {
+        token = tree.token (byAddingParameterObserver: { [weak self]
             address, value in
 
             DispatchQueue.main.async {
-                if address == self.cutoffFrequencyParameter!.address {
-                    self.cutoffFrequency = Double(value)
-                } else if address == self.resonanceParameter!.address {
-                    self.resonance = Double(value)
+                if address == self?.cutoffFrequencyParameter!.address {
+                    self?.cutoffFrequency = Double(value)
+                } else if address == self?.resonanceParameter!.address {
+                    self?.resonance = Double(value)
                 }
             }
         })

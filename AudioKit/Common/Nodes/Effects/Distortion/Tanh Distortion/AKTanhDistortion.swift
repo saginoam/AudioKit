@@ -3,28 +3,21 @@
 //  AudioKit
 //
 //  Created by Aurelius Prochazka, revision history on Github.
-//  Copyright (c) 2016 Aurelius Prochazka. All rights reserved.
+//  Copyright (c) 2017 Aurelius Prochazka. All rights reserved.
 //
 
 import AVFoundation
 
 /// Distortion using a modified hyperbolic tangent function.
 ///
-/// - Parameters:
-///   - input: Input node to process
-///   - pregain: Determines the amount of gain applied to the signal before waveshaping. A value of 1 gives slight distortion.
-///   - postgain: Gain applied after waveshaping
-///   - postiveShapeParameter: Shape of the positive part of the signal. A value of 0 gets a flat clip.
-///   - negativeShapeParameter: Like the positive shape parameter, only for the negative part.
-///
 open class AKTanhDistortion: AKNode, AKToggleable, AKComponent {
     public typealias AKAudioUnitType = AKTanhDistortionAudioUnit
-    static let ComponentDescription = AudioComponentDescription(effect: "dist")
+    public static let ComponentDescription = AudioComponentDescription(effect: "dist")
 
     // MARK: - Properties
 
-    internal var internalAU: AKAudioUnitType?
-    internal var token: AUParameterObserverToken?
+    private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var pregainParameter: AUParameter?
     fileprivate var postgainParameter: AUParameter?
@@ -34,10 +27,7 @@ open class AKTanhDistortion: AKNode, AKToggleable, AKComponent {
     /// Ramp Time represents the speed at which parameters are allowed to change
     open var rampTime: Double = AKSettings.rampTime {
         willSet {
-            if rampTime != newValue {
-                internalAU?.rampTime = newValue
-                internalAU?.setUpParameterRamp()
-            }
+            internalAU?.rampTime = newValue
         }
     }
 
@@ -121,37 +111,34 @@ open class AKTanhDistortion: AKNode, AKToggleable, AKComponent {
         _Self.register()
 
         super.init()
-        AVAudioUnit.instantiate(with: _Self.ComponentDescription, options: []) {
-            avAudioUnit, error in
+        AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self]
+            avAudioUnit in
 
-            guard let avAudioUnitEffect = avAudioUnit else { return }
+            self?.avAudioNode = avAudioUnit
+            self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
 
-            self.avAudioNode = avAudioUnitEffect
-            self.internalAU = avAudioUnitEffect.auAudioUnit as? AKAudioUnitType
-
-            AudioKit.engine.attach(self.avAudioNode)
-            input.addConnectionPoint(self)
+            input.addConnectionPoint(self!)
         }
 
         guard let tree = internalAU?.parameterTree else { return }
 
-        pregainParameter                = tree["pregain"]
-        postgainParameter               = tree["postgain"]
-        postiveShapeParameterParameter  = tree["postiveShapeParameter"]
+        pregainParameter = tree["pregain"]
+        postgainParameter = tree["postgain"]
+        postiveShapeParameterParameter = tree["postiveShapeParameter"]
         negativeShapeParameterParameter = tree["negativeShapeParameter"]
 
-        token = tree.token (byAddingParameterObserver: {
+        token = tree.token (byAddingParameterObserver: { [weak self]
             address, value in
 
             DispatchQueue.main.async {
-                if address == self.pregainParameter!.address {
-                    self.pregain = Double(value)
-                } else if address == self.postgainParameter!.address {
-                    self.postgain = Double(value)
-                } else if address == self.postiveShapeParameterParameter!.address {
-                    self.postiveShapeParameter = Double(value)
-                } else if address == self.negativeShapeParameterParameter!.address {
-                    self.negativeShapeParameter = Double(value)
+                if address == self?.pregainParameter!.address {
+                    self?.pregain = Double(value)
+                } else if address == self?.postgainParameter!.address {
+                    self?.postgain = Double(value)
+                } else if address == self?.postiveShapeParameterParameter!.address {
+                    self?.postiveShapeParameter = Double(value)
+                } else if address == self?.negativeShapeParameterParameter!.address {
+                    self?.negativeShapeParameter = Double(value)
                 }
             }
         })

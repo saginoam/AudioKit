@@ -3,27 +3,20 @@
 //  AudioKit
 //
 //  Created by Aurelius Prochazka, revision history on Github.
-//  Copyright (c) 2016 Aurelius Prochazka. All rights reserved.
+//  Copyright (c) 2017 Aurelius Prochazka. All rights reserved.
 //
 
 import AVFoundation
 
 /// An automatic wah effect, ported from Guitarix via Faust.
 ///
-/// - Parameters:
-///   - input: Input node to process
-///   - wah: Wah Amount
-///   - mix: Dry/Wet Mix
-///   - amplitude: Overall level
-///
 open class AKAutoWah: AKNode, AKToggleable, AKComponent {
   public typealias AKAudioUnitType = AKAutoWahAudioUnit
-    static let ComponentDescription = AudioComponentDescription(effect: "awah")
+    public static let ComponentDescription = AudioComponentDescription(effect: "awah")
 
     // MARK: - Properties
-
-    internal var internalAU: AKAudioUnitType?
-    internal var token: AUParameterObserverToken?
+    private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var wahParameter: AUParameter?
     fileprivate var mixParameter: AUParameter?
@@ -32,10 +25,7 @@ open class AKAutoWah: AKNode, AKToggleable, AKComponent {
     /// Ramp Time represents the speed at which parameters are allowed to change
     open var rampTime: Double = AKSettings.rampTime {
         willSet {
-            if rampTime != newValue {
-                internalAU?.rampTime = newValue
-                internalAU?.setUpParameterRamp()
-            }
+            internalAU?.rampTime = rampTime
         }
     }
 
@@ -104,16 +94,13 @@ open class AKAutoWah: AKNode, AKToggleable, AKComponent {
         _Self.register()
 
         super.init()
-        AVAudioUnit.instantiate(with: _Self.ComponentDescription, options: []) {
-            avAudioUnit, error in
+        AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self]
+            avAudioUnit in
 
-            guard let avAudioUnitEffect = avAudioUnit else { return }
+            self?.avAudioNode = avAudioUnit
+            self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
 
-            self.avAudioNode = avAudioUnitEffect
-            self.internalAU = avAudioUnitEffect.auAudioUnit as? AKAudioUnitType
-
-            AudioKit.engine.attach(self.avAudioNode)
-            input.addConnectionPoint(self)
+            input.addConnectionPoint(self!)
         }
 
         guard let tree = internalAU?.parameterTree else { return }
@@ -122,16 +109,16 @@ open class AKAutoWah: AKNode, AKToggleable, AKComponent {
         mixParameter       = tree["mix"]
         amplitudeParameter = tree["amplitude"]
 
-        token = tree.token (byAddingParameterObserver: {
+        token = tree.token (byAddingParameterObserver: { [weak self]
             address, value in
 
             DispatchQueue.main.async {
-                if address == self.wahParameter!.address {
-                    self.wah = Double(value)
-                } else if address == self.mixParameter!.address {
-                    self.mix = Double(value)
-                } else if address == self.amplitudeParameter!.address {
-                    self.amplitude = Double(value)
+                if address == self?.wahParameter!.address {
+                    self?.wah = Double(value)
+                } else if address == self?.mixParameter!.address {
+                    self?.mix = Double(value)
+                } else if address == self?.amplitudeParameter!.address {
+                    self?.amplitude = Double(value)
                 }
             }
         })

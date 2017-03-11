@@ -45,8 +45,8 @@ import AVFoundation
             return try AKAudioFile(forReading: internalAudioFile.url)
             
         } catch let error as NSError {
-            print("Cannot create internal audio file for reading")
-            print("Error: \(error.localizedDescription)")
+            AKLog("Cannot create internal audio file for reading")
+            AKLog("Error: \(error.localizedDescription)")
             return nil
         }
         
@@ -67,13 +67,13 @@ import AVFoundation
                 file: AKAudioFile? = nil) throws {
         
         // AVAudioSession buffer setup
-        
+
         if file == nil {
             // We create a record file in temp directory
             do {
                 self.internalAudioFile = try AKAudioFile()
             } catch let error as NSError {
-                print("AKNodeRecorder Error: Cannot create an empty audio file")
+                AKLog("AKNodeRecorder Error: Cannot create an empty audio file")
                 throw error
             }
             
@@ -84,7 +84,7 @@ import AVFoundation
                 self.internalAudioFile = try AKAudioFile(forWriting: file!.url,
                                                          settings: file!.processingFormat.settings)
             } catch let error as NSError {
-                print("AKNodeRecorder Error: cannot write to \(file!.fileNamePlusExtension)")
+                AKLog("AKNodeRecorder Error: cannot write to \(file!.fileNamePlusExtension)")
                 throw error
             }
         }
@@ -96,7 +96,7 @@ import AVFoundation
     /// Start recording
     open func record() throws {
         if recording {
-            print("AKNodeRecorder Warning: already recording !")
+            AKLog("AKNodeRecorder Warning: already recording !")
             return
         }
         
@@ -106,68 +106,58 @@ import AVFoundation
             var permissionGranted: Bool = false
             
             AKSettings.session.requestRecordPermission() {
-                (granted: Bool)-> Void in
-                if granted {
-                    permissionGranted = true
-                } else {
-                    permissionGranted = false
-                }
+                permissionGranted = $0
             }
             
             if !permissionGranted {
-                print("AKNodeRecorder Error: Permission to record not granted")
+                AKLog("AKNodeRecorder Error: Permission to record not granted")
                 throw NSError(domain: NSURLErrorDomain,
                               code: NSURLErrorUnknown,
                               userInfo: nil)
             }
-            
+
             // Sets AVAudioSession Category to be Play and Record
             
-            if AKSettings.session.category != AKSettings.SessionCategory.playAndRecord.rawValue {
+            if AKSettings.session.category != "\(AKSettings.SessionCategory.playAndRecord)" {
                 do {
                     try AKSettings.setSession(category: .playAndRecord)
                 } catch let error as NSError {
-                    print("AKNodeRecorder Error: Cannot set AVAudioSession Category to be .PlaybackAndRecord")
+                    AKLog("AKNodeRecorder Error: Cannot set AVAudioSession Category to be .PlaybackAndRecord")
                     throw error
                 }
             }
         #endif
         
+        guard let node = node else { AKLog("AKNodeRecorder Error: input node is not available"); return }
+
+        let recordingBufferLength: AVAudioFrameCount = AKSettings.recordingBufferLength.samplesCount
+        recording = true
         
-        if  node != nil {
-            
-            let recordingBufferLength: AVAudioFrameCount = AKSettings.recordingBufferLength.samplesCount
-            recording = true
-            
-            print("AKNodeRecorder: recording")
-            node!.avAudioNode.installTap(
-                onBus: 0,
-                bufferSize: recordingBufferLength,
-                format: internalAudioFile.processingFormat) {
-                    (buffer: AVAudioPCMBuffer!, time: AVAudioTime!) -> Void in
-                    do {
-                        self.recordBufferDuration = Double(buffer.frameLength) / AKSettings.sampleRate
-                        try self.internalAudioFile.write(from: buffer)
-                        print("AKNodeRecorder writing (file duration: \(self.internalAudioFile.duration) seconds)")
-                        
-                        // allow an optional timed stop
-                        if self.durationToRecord != 0 && self.internalAudioFile.duration >= self.durationToRecord {
-                            self.stop()
-                        }
-                        
-                    } catch let error as NSError {
-                        print("Write failed: error -> \(error.localizedDescription)")
-                    }
-            }
-        } else {
-            print("AKNodeRecorder Error: input node is not available")
+        AKLog("AKNodeRecorder: recording")
+        node.avAudioNode.installTap(onBus: 0,
+                                    bufferSize: recordingBufferLength,
+                                    format: internalAudioFile.processingFormat) {
+                                      (buffer: AVAudioPCMBuffer!, time: AVAudioTime!) -> () in
+                                      do {
+                                          self.recordBufferDuration = Double(buffer.frameLength) / AKSettings.sampleRate
+                                          try self.internalAudioFile.write(from: buffer)
+                                          AKLog("AKNodeRecorder writing (file duration: \(self.internalAudioFile.duration) seconds)")
+
+                                          // allow an optional timed stop
+                                          if self.durationToRecord != 0 && self.internalAudioFile.duration >= self.durationToRecord {
+                                              self.stop()
+                                          }
+
+                                      } catch let error as NSError {
+                                          AKLog("Write failed: error -> \(error.localizedDescription)")
+                                      }
         }
     }
     
     /// Stop recording
     open func stop() {
         if !recording {
-            print("AKNodeRecorder Warning: Cannot stop recording, already stopped !")
+            AKLog("AKNodeRecorder Warning: Cannot stop recording, already stopped !")
             return
         }
         
@@ -179,10 +169,10 @@ import AVFoundation
                 usleep(delay)
             }
             node!.avAudioNode.removeTap(onBus: 0)
-            print("AKNodeRecorder: Recording Stopped.")
+            AKLog("AKNodeRecorder: Recording Stopped.")
             
         } else {
-            print("AKNodeRecorder Error: input node is not available")
+            AKLog("AKNodeRecorder Error: input node is not available")
         }
     }
     
@@ -203,16 +193,16 @@ import AVFoundation
         do {
             try fileManager.removeItem(atPath: audioFile!.url.absoluteString)
         } catch let error as NSError {
-            print("AKNodeRecorder Error: cannot delete Recording file:  \(audioFile!.fileNamePlusExtension)")
+            AKLog("AKNodeRecorder Error: cannot delete Recording file:  \(audioFile!.fileNamePlusExtension)")
             throw error
         }
         
         // Creates a blank new file
         do {
             internalAudioFile = try AKAudioFile(forWriting: url, settings: settings)
-            print("AKNodeRecorder: file has been cleared")
+            AKLog("AKNodeRecorder: file has been cleared")
         } catch let error as NSError {
-            print("AKNodeRecorder Error: cannot record to file: \(internalAudioFile.fileNamePlusExtension)")
+            AKLog("AKNodeRecorder Error: cannot record to file: \(internalAudioFile.fileNamePlusExtension)")
             throw error
         }
     }

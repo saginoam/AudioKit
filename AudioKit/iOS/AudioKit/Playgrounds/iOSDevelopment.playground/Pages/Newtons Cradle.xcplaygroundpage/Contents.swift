@@ -3,7 +3,6 @@ import PlaygroundSupport
 
 import AudioKit
 
-
 let file = try AKAudioFile(readFileName: "click.wav", baseDir: .resources)
 var tink = try AKAudioPlayer(file: file)
 
@@ -85,7 +84,7 @@ public class NewtonsCradle: UIView, UICollisionBehaviorDelegate {
         itemBehavior = UIDynamicItemBehavior(items: [])
         
         super.init(frame: CGRect(x: 0, y: 0, width: 480, height: 320))
-        backgroundColor = UIColor.whiteColor()
+        backgroundColor = UIColor.white
         
         animator = UIDynamicAnimator(referenceView: self)
         animator?.addBehavior(collisionBehavior)
@@ -94,9 +93,6 @@ public class NewtonsCradle: UIView, UICollisionBehaviorDelegate {
         
         createBallViews()
         collisionBehavior.collisionDelegate = self
-        
-        
-        
     }
     
     public required init?(coder aDecoder: NSCoder) {
@@ -146,15 +142,13 @@ public class NewtonsCradle: UIView, UICollisionBehaviorDelegate {
     // MARK: Properties
     
     public var attachmentBehaviors: [UIAttachmentBehavior] {
-        get {
-            var attachmentBehaviors: [UIAttachmentBehavior] = []
-            for ball in balls {
-                guard let attachmentBehavior = ballsToAttachmentBehaviors[ball]
-                    else { fatalError("Can't find attachment behavior for \(ball)") }
-                attachmentBehaviors.append(attachmentBehavior)
-            }
-            return attachmentBehaviors
+        var attachmentBehaviors: [UIAttachmentBehavior] = []
+        for ball in balls {
+            guard let attachmentBehavior = ballsToAttachmentBehaviors[ball]
+                else { fatalError("Can't find attachment behavior for \(ball)") }
+            attachmentBehaviors.append(attachmentBehavior)
         }
+        return attachmentBehaviors
     }
     
     public var useSquaresInsteadOfBalls: Bool = false {
@@ -224,7 +218,7 @@ public class NewtonsCradle: UIView, UICollisionBehaviorDelegate {
         if let touch = touches.first {
             let touchLocation = touch.locationInView(superview)
             for ball in balls {
-                if CGRectContainsPoint(ball.frame, touchLocation) {
+                if ball.frame.contains(touchLocation) {
                     snapBehavior = UISnapBehavior(item: ball, snapToPoint: touchLocation)
                     animator?.addBehavior(snapBehavior!)
                 }
@@ -272,7 +266,7 @@ public class NewtonsCradle: UIView, UICollisionBehaviorDelegate {
             
             CGContextMoveToPoint(context, anchorPoint.x, anchorPoint.y)
             CGContextAddLineToPoint(context, ball.center.x, ball.center.y)
-            CGContextSetStrokeColorWithColor(context, UIColor.darkGrayColor().CGColor)
+            CGContextSetStrokeColorWithColor(context, UIColor.darkGray.CGColor)
             CGContextSetLineWidth(context, 4.0)
             CGContextStrokePath(context)
             
@@ -284,7 +278,7 @@ public class NewtonsCradle: UIView, UICollisionBehaviorDelegate {
                                            width: attachmentDotWidth,
                                            height: attachmentDotWidth)
             
-            CGContextSetFillColorWithColor(context, UIColor.darkGrayColor().CGColor)
+            CGContextSetFillColorWithColor(context, UIColor.darkGray.CGColor)
             CGContextFillEllipseInRect(context, attachmentDotRect)
         }
         

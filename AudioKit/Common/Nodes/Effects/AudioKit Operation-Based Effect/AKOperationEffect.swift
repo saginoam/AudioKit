@@ -3,7 +3,7 @@
 //  AudioKit
 //
 //  Created by Aurelius Prochazka, revision history on Github.
-//  Copyright (c) 2015 Aurelius Prochazka. All rights reserved.
+//  Copyright (c) 2017 Aurelius Prochazka. All rights reserved.
 //
 
 import AVFoundation
@@ -11,7 +11,7 @@ import AVFoundation
 /// Operation-based effect
 open class AKOperationEffect: AKNode, AKToggleable, AKComponent {
     public typealias AKAudioUnitType = AKOperationEffectAudioUnit
-    static let ComponentDescription = AudioComponentDescription(effect: "cstm")
+    public static let ComponentDescription = AudioComponentDescription(effect: "cstm")
 
     // MARK: - Properties
 
@@ -25,13 +25,9 @@ open class AKOperationEffect: AKNode, AKToggleable, AKComponent {
     /// Parameters for changing internal operations
     open var parameters: [Double] {
         get {
-            var result: [Double] = []
-            if let floatParameters = internalAU?.parameters as? [NSNumber] {
-                for number in floatParameters {
-                    result.append(number.doubleValue)
-                }
-            }
-            return result
+            return (internalAU?.parameters as? [NSNumber]).flatMap {
+                $0.flatMap { $0.doubleValue }
+            } ?? []
         }
         set {
             internalAU?.parameters = newValue
@@ -95,16 +91,14 @@ open class AKOperationEffect: AKNode, AKToggleable, AKComponent {
         _Self.register()
 
         super.init()
-        AVAudioUnit.instantiate(with: _Self.ComponentDescription, options: []) {
-            avAudioUnit, error in
+        AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self]
+            avAudioUnit in
 
-            guard let avAudioUnitEffect = avAudioUnit else { return }
+            self?.avAudioNode = avAudioUnit
+            self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
 
-            self.avAudioNode = avAudioUnitEffect
-            self.internalAU = avAudioUnitEffect.auAudioUnit as? AKAudioUnitType
-            AudioKit.engine.attach(self.avAudioNode)
-            input.addConnectionPoint(self)
-            self.internalAU?.setSporth(sporth)
+            input.addConnectionPoint(self!)
+            self?.internalAU?.setSporth(sporth)
         }
     }
     
